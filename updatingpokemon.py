@@ -1,5 +1,6 @@
 from requests import get
-from Node import Node
+from Linkedlist2 import LinkedList
+
 class Pokemon():
     
     def __init__(self, name):
@@ -10,7 +11,26 @@ class Pokemon():
         self.image = None
         self.call_poke_api()
         self.pokes = []
-        self.evolve_chain = []       
+        self.evolution_chain = LinkedList()      
+
+    def call_poke_api(self):
+        if isinstance(self.name, str) and self.name.isalpha():
+            self.name = self.name.lower()
+        response = get(f'https://pokeapi.co/api/v2/pokemon/{self.name}')
+        if response.status_code == 200:
+            print('Success')
+            data = response.json()
+            self.name = data['name']
+            self.abilities = [ability_object['ability']['name'] for ability_object in data['abilities']]
+            self.types = [type_object['type']['name'] for type_object in data['types']]
+            self.weight = data['weight']
+#             self.image = data['sprites']['front_defualt']
+            self.image = data['sprites']['versions']['generation-v']['black-white']['animated']['front_default']
+            if not self.image:
+                self.image = data['sprites']['front_default']
+            self.species_url = data['species']['url']
+        else:
+            print(f'Error status code {response.status_code}') 
             
     def get_evolution_chain(self):
         response = get(self.species_url)
@@ -21,7 +41,7 @@ class Pokemon():
         if evolution_chain.status_code == 200:
             return evolution_chain.json()['chain']
             
-    def evolve_pokemon(self, evolution_chain):
+    def evolve_pokemon(self, evolution_chain): 
         if not evolution_chain['evolves_to']:
             print(f'This is the final from')
             return
@@ -36,14 +56,19 @@ class Pokemon():
         
         
     def add_evolve_chain(self, evolution_chain):
-            pokemon = Pokemon(evolution_chain)
-            if not self.name:
-                self.name = pokemon
-            else:
-                current_pokemon_in_chain = self.name
-            while current_pokemon_in_chain.right:
-              next_pokemon_in_chain = current_pokemon_in_chain.right
-              current_pokemon_in_chain.left = next_pokemon_in_chain
-            current_pokemon_in_chain.right = pokemon
+            current_pokemon_in_chain = evolution_chain['species']['name']
+            self.evolution_chain.add_node(current_pokemon_in_chain)
+            if not evolution_chain['evolves_to']:
+                print(f'This is the final form')
+                return
+            
+            return self.add_evolve_chain(evolution_chain['evolves_to'][0])
+    
+
+poke = Pokemon('pikachu')
+poke.add_evolve_chain(poke.get_evolution_chain())
+
+print(poke.evolution_chain)
+
 
 
